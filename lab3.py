@@ -1,90 +1,92 @@
-from Crypto.Cipher import DES, AES, DES3
+from Crypto.Cipher import DES, DES3, AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
-import base64
+import binascii
+import sys
 
-def encrypt_des(key, iv, plaintext):
-    cipher = DES.new(key.encode('utf-8'), DES.MODE_CBC, iv.encode('utf-8'))
-    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), DES.block_size))
-    return base64.b64encode(ciphertext).decode('utf-8')
+def adjust_key(key, required_length):
+    if len(key) < required_length:
+        # Rellenar con bytes aleatorios si la clave es demasiado corta
+        additional_bytes = get_random_bytes(required_length - len(key))
+        adjusted_key = key + additional_bytes
+    elif len(key) > required_length:
+        # Truncar al último byte si la clave es demasiado larga
+        adjusted_key = key[-required_length:]
+    else:
+        # Si la longitud es correcta, no se modifica
+        adjusted_key = key
 
-def decrypt_des(key, iv, ciphertext):
-    cipher = DES.new(key.encode('utf-8'), DES.MODE_CBC, iv.encode('utf-8'))
-    decrypted = unpad(cipher.decrypt(base64.b64decode(ciphertext)), DES.block_size)
-    return decrypted.decode('utf-8')
+    print("Clave ajustada utilizada (en hexadecimal):", adjusted_key.hex())
+    return adjusted_key
 
-def encrypt_aes(key, iv, plaintext):
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv.encode('utf-8'))
-    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
-    return base64.b64encode(ciphertext).decode('utf-8')
+def get_inputs():
+    print("Seleccione el algoritmo de cifrado:")
+    print("1 - DES")
+    print("2 - AES-256")
+    print("3 - 3DES")
+    option = input("Ingrese el número del algoritmo: ").strip()
 
-def decrypt_aes(key, iv, ciphertext):
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv.encode('utf-8'))
-    decrypted = unpad(cipher.decrypt(base64.b64decode(ciphertext)), AES.block_size)
-    return decrypted.decode('utf-8')
-
-def encrypt_3des(key, iv, plaintext):
-    cipher = DES3.new(key.encode('utf-8'), DES3.MODE_CBC, iv.encode('utf-8'))
-    ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), DES3.block_size))
-    return base64.b64encode(ciphertext).decode('utf-8')
-
-def decrypt_3des(key, iv, ciphertext):
-    cipher = DES3.new(key.encode('utf-8'), DES3.MODE_CBC, iv.encode('utf-8'))
-    decrypted = unpad(cipher.decrypt(base64.b64decode(ciphertext)), DES3.block_size)
-    return decrypted.decode('utf-8')
-
-def main():
-    print("Seleccione el algoritmo:")
-    print("1. DES")
-    print("2. AES-256")
-    print("3. 3DES")
-    choice = input("Ingrese el número del algoritmo: ")
-
-    key = input("Ingrese la key (para DES y 3DES, debe ser de 8/24 bytes; para AES-256, debe ser de 32 bytes): ")
-    iv = input("Ingrese el vector de inicialización (IV) (debe ser de 16 bytes): ")
-    plaintext = input("Ingrese el texto a cifrar: ")
-
-    if choice == '1':
-        # DES
-        if len(key) != 8:
-            print("La key para DES debe ser de 8 bytes.")
-            return
-        if len(iv) != 16:
-            print("El IV debe ser de 16 bytes.")
-            return
-        ciphertext = encrypt_des(key, iv, plaintext)
-        print("Texto cifrado (DES):", ciphertext)
-        decrypted = decrypt_des(key, iv, ciphertext)
-        print("Texto descifrado (DES):", decrypted)
-
-    elif choice == '2':
-        # AES-256
-        if len(key) != 32:
-            print("La key para AES-256 debe ser de 32 bytes.")
-            return
-        if len(iv) != 16:
-            print("El IV debe ser de 16 bytes.")
-            return
-        ciphertext = encrypt_aes(key, iv, plaintext)
-        print("Texto cifrado (AES-256):", ciphertext)
-        decrypted = decrypt_aes(key, iv, ciphertext)
-        print("Texto descifrado (AES-256):", decrypted)
-
-    elif choice == '3':
-        # 3DES
-        if len(key) != 24:
-            print("La key para 3DES debe ser de 24 bytes.")
-            return
-        if len(iv) != 16:
-            print("El IV debe ser de 16 bytes.")
-            return
-        ciphertext = encrypt_3des(key, iv, plaintext)
-        print("Texto cifrado (3DES):", ciphertext)
-        decrypted = decrypt_3des(key, iv, ciphertext)
-        print("Texto descifrado (3DES):", decrypted)
-
+    if option == '1':
+        key_length = 8
+        iv_length = 8
+        cipher_class = DES
+    elif option == '2':
+        key_length = 32
+        iv_length = 16
+        cipher_class = AES
+    elif option == '3':
+        key_length = 24
+        iv_length = 8
+        cipher_class = DES3
     else:
         print("Opción no válida.")
+        sys.exit(1)
+    
+    print(f"Ingrese la clave en hexadecimal (de cualquier longitud, ajustada a {key_length} bytes si es necesario): ")
+    key_hex = input().strip()
+    try:
+        key = binascii.unhexlify(key_hex)
+    except binascii.Error:
+        print("Clave en formato hexadecimal no válida.")
+        sys.exit(1)
+    
+    key = adjust_key(key, key_length)  # Ajustar la clave según la longitud requerida
+    
+    print(f"Ingrese el vector de inicialización (IV) en hexadecimal (debe ser de {iv_length} caracteres hexadecimales): ")
+    iv_hex = input().strip()
+    try:
+        iv = binascii.unhexlify(iv_hex)
+    except binascii.Error:
+        print("IV en formato hexadecimal no válido.")
+        sys.exit(1)
+    
+    if len(iv) != iv_length:
+        print(f"El IV debe tener {iv_length} bytes.")
+        sys.exit(1)
+    
+    print("Ingrese el texto a cifrar: ")
+    text = input().encode('utf-8')
+    
+    return cipher_class, key, iv, text
+
+def encrypt(algorithm, key, iv, text):
+    cipher = algorithm.new(key, algorithm.MODE_CBC, iv)
+    encrypted_text = cipher.encrypt(pad(text, algorithm.block_size))
+    return encrypted_text
+
+def decrypt(algorithm, key, iv, encrypted_text):
+    cipher = algorithm.new(key, algorithm.MODE_CBC, iv)
+    decrypted_text = unpad(cipher.decrypt(encrypted_text), algorithm.block_size)
+    return decrypted_text
+
+def main():
+    cipher_class, key, iv, text = get_inputs()
+    
+    encrypted_text = encrypt(cipher_class, key, iv, text)
+    print("Texto cifrado (en hexadecimal):", encrypted_text.hex())
+    
+    decrypted_text = decrypt(cipher_class, key, iv, encrypted_text)
+    print("Texto descifrado:", decrypted_text.decode('utf-8'))
 
 if __name__ == "__main__":
     main()
