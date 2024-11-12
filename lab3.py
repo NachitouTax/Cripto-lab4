@@ -5,15 +5,13 @@ import binascii
 import sys
 
 def adjust_key(key, required_length):
+    # Ajuste de longitud para la clave sin ajuste de paridad adicional
     if len(key) < required_length:
-        # Rellenar con bytes aleatorios si la clave es demasiado corta
         additional_bytes = get_random_bytes(required_length - len(key))
         adjusted_key = key + additional_bytes
     elif len(key) > required_length:
-        # Truncar al último byte si la clave es demasiado larga
         adjusted_key = key[-required_length:]
     else:
-        # Si la longitud es correcta, no se modifica
         adjusted_key = key
 
     print("Clave ajustada utilizada (en hexadecimal):", adjusted_key.hex())
@@ -69,23 +67,50 @@ def get_inputs():
     
     return cipher_class, key, iv, text
 
-def encrypt(algorithm, key, iv, text):
-    cipher = algorithm.new(key, algorithm.MODE_CBC, iv)
-    encrypted_text = cipher.encrypt(pad(text, algorithm.block_size))
+def encrypt_des(key, iv, text):
+    cipher = DES.new(key, DES.MODE_CBC, iv)
+    encrypted_text = cipher.encrypt(pad(text, DES.block_size))
     return encrypted_text
 
-def decrypt(algorithm, key, iv, encrypted_text):
-    cipher = algorithm.new(key, algorithm.MODE_CBC, iv)
-    decrypted_text = unpad(cipher.decrypt(encrypted_text), algorithm.block_size)
+def decrypt_des(key, iv, encrypted_text):
+    cipher = DES.new(key, DES.MODE_CBC, iv)
+    decrypted_text = unpad(cipher.decrypt(encrypted_text), DES.block_size)
+    return decrypted_text
+
+def encrypt_aes(key, iv, text):
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    encrypted_text = cipher.encrypt(pad(text, AES.block_size))
+    return encrypted_text
+
+def decrypt_aes(key, iv, encrypted_text):
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted_text = unpad(cipher.decrypt(encrypted_text), AES.block_size)
+    return decrypted_text
+
+def encrypt_3des(key, iv, text):
+    cipher = DES3.new(key, DES3.MODE_CBC, iv)
+    encrypted_text = cipher.encrypt(pad(text, DES3.block_size))
+    return encrypted_text
+
+def decrypt_3des(key, iv, encrypted_text):
+    cipher = DES3.new(key, DES3.MODE_CBC, iv)
+    decrypted_text = unpad(cipher.decrypt(encrypted_text), DES3.block_size)
     return decrypted_text
 
 def main():
     cipher_class, key, iv, text = get_inputs()
     
-    encrypted_text = encrypt(cipher_class, key, iv, text)
-    print("Texto cifrado (en hexadecimal):", encrypted_text.hex())
+    if cipher_class == DES:
+        encrypted_text = encrypt_des(key, iv, text)
+        decrypted_text = decrypt_des(key, iv, encrypted_text)
+    elif cipher_class == AES:
+        encrypted_text = encrypt_aes(key, iv, text)
+        decrypted_text = decrypt_aes(key, iv, encrypted_text)
+    elif cipher_class == DES3:
+        encrypted_text = encrypt_3des(key, iv, text)
+        decrypted_text = decrypt_3des(key, iv, encrypted_text)
     
-    decrypted_text = decrypt(cipher_class, key, iv, encrypted_text)
+    print("Texto cifrado (en hexadecimal):", encrypted_text.hex())
     print("Texto descifrado:", decrypted_text.decode('utf-8'))
 
 if __name__ == "__main__":
